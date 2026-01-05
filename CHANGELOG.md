@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.2.1
+
+### Patch Changes
+
+- 3353ce3: export all types from components
+
 ## 0.2.0
 
 ### Minor Changes
