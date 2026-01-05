@@ -1,2 +1,2 @@
-export type * from './general.d.ts'
-export type * from './meta.d.ts'
+export type * from './general'
+export type * from './meta'

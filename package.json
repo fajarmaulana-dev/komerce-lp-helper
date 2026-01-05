@@ -1,6 +1,6 @@
 {
   "name": "@fajarmaulana/komerce-lp-helper",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Helper functions, hooks, and utils for Komerce LP",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -8,7 +8,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc"
+    "build": "tsc && tsc-alias"
   },
   "peerDependencies": {
     "react": ">=19",
@@ -35,6 +35,7 @@
     "globals": "^15.14.0",
     "prettier": "^3.6.2",
     "react-router-dom": "^7.11.0",
+    "tsc-alias": "^1.8.16",
     "typescript": "^5.2.0"
   },
   "author": "Fajar Maulana",
