@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.2.0
+
+### Minor Changes
+
+- 9f13025: add form utils and eslint
+
 ## 0.1.1
 
 ### Patch Changes
