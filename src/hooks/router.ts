@@ -104,7 +104,7 @@ export function useRouter(): TUseRouter {
 
   const query = useMemo(() => {
     const queryObj: TRouterQuery = {}
-    searchParams.forEach((value, key) => {
+    searchParams.forEach((value: string, key: string) => {
       if (queryObj[key]) {
         queryObj[key] = Array.isArray(queryObj[key])
           ? [...(queryObj[key] as string[]), value]
@@ -235,7 +235,7 @@ export function useQueryParams<T extends Record<string, string | string[]>>(
   const queryObj = useMemo(() => {
     const result: Partial<Record<string, string | string[]>> = { ...defaultValues }
 
-    searchParams.forEach((value, key) => {
+    searchParams.forEach((value: string, key: string) => {
       const allValues = searchParams.getAll(key)
       if (allValues.length > 1) {
         result[key] = allValues
