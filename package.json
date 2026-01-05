@@ -1,5 +1,5 @@
 {
-  "name": "komerce-lp-helper",
+  "name": "@fajarmaulana/komerce-lp-helper",
   "version": "0.1.0",
   "description": "Helper functions, hooks and utils for Komerce LP",
   "main": "dist/index.js",
@@ -16,9 +16,10 @@
     "react-router-dom": ">=6"
   },
   "devDependencies": {
-    "typescript": "^5.2.0",
+    "@changesets/cli": "^2.29.8",
     "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0"
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.2.0"
   },
   "author": "Fajar Maulana",
   "license": "MIT",
@@ -30,5 +31,12 @@
     "fetcher",
     "utils",
     "hooks"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fajarmaulana-dev/komerce-lp-helper"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }
