@@ -5,7 +5,7 @@ A collection of useful React hooks, utilities, and helper functions designed for
 ## Installation
 
 ```bash
-npm install komerce-lp-helper
+npm install @fajarmaulana/komerce-lp-helper
 ```
 
 ## Features

@@ -4,12 +4,12 @@ import type { TChildren } from '@/types'
 
 import type { TLazyBackground } from './hooks'
 
-type TFormProps = {
+export type TFormProps = {
   action: (formData: FormData) => void
 } & ComponentPropsWithRef<'form'> &
   TChildren
 
-type TLazyBackgroundProps = {
+export type TLazyBackgroundProps = {
   children?: ReactNode
 } & TLazyBackground &
   ComponentPropsWithRef<'div'>
