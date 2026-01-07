@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.2.2
+
+### Patch Changes
+
+- d1b4665: rename .d.ts file to .ts
+
 ## 0.2.1
 
 ### Patch Changes
