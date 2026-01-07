@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.3.0
+
+### Minor Changes
+
+- dcbf8a6: add towa function in utils
+
 ## 0.2.2
 
 ### Patch Changes
