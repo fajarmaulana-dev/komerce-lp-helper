@@ -81,11 +81,13 @@ export const isNotPrimitive = (value: unknown) => {
  * Get WhatsApp url by message and phone number if urlOnly = true, or open the url in new window.
  *
  * @param message - message.
- * @param urlOnly - get WhatsApp if true, open url in new window otherwise.
- * @param phoneNumber - the target number.
+ * @param options - configuration options.
  */
-export const toWA = (message = '', urlOnly = true, phoneNumber = '6283129733705') => {
+export const toWA = (message = '', options: { urlOnly?: boolean; phoneNumber?: string } = {}) => {
+  const { urlOnly = true, phoneNumber = '6283129733705' } = options
+
   const whatsappUrl = `https://wa.me/${phoneNumber}${message ? `?text=${encodeURIComponent(message)}` : ''}`
+
   if (urlOnly) return whatsappUrl
   window.open(whatsappUrl, '_blank')
 }
