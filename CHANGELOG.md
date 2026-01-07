@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.3.1
+
+### Patch Changes
+
+- 5187780: improve flexibility of towa function
+
 ## 0.3.0
 
 ### Minor Changes
