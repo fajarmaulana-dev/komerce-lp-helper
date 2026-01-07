@@ -280,7 +280,7 @@ export class ApiInstance implements IApiInstance {
   constructor(options: TApiInstanceOptions = {}) {
     this.baseURL = options.baseURL || ''
     this.defaultHeaders = options.headers || {}
-    this.source = `komcards-${options.source || 'default'}`
+    this.source = `komerce-${options.source || 'default'}`
     this.cache = new Map()
     this.maxCacheSize = options.maxCacheSize || 100
     this.cacheAccessOrder = []
