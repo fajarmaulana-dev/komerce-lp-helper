@@ -252,9 +252,12 @@ export default function createApi(options: TApiInstanceOptions = {}): TApiHooks 
           setState(newState)
           return newState
         } catch (err) {
+          if (err instanceof Error && err.name === 'AbortError') {
+            return state
+          }
           const newState: TFetchState<T> = {
             data: null,
-            error: err instanceof Error && err.name === 'AbortError' ? null : err,
+            error: err,
             isLoading: false,
             cacheKey: null,
           }
