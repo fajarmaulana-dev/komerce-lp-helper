@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.3.2
+
+### Patch Changes
+
+- 2856add: fix empty ts-doc issue on use api function hover
+
 ## 0.3.1
 
 ### Patch Changes
