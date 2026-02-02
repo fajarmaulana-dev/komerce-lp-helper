@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.3.3
+
+### Patch Changes
+
+- 3a65001: fix isLoading issue of use api
+
 ## 0.3.2
 
 ### Patch Changes
