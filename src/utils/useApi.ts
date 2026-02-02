@@ -40,29 +40,17 @@ type TInfiniteFetchOptions<T> = {
   setOffset: (lastItems: T, allItems: T[], lastOffset: number) => number | null
 }
 
-const pendingRequests: Map<string, Promise<TApiResponse<unknown>>> = new Map()
+type TInfiniteFetchResult<T> = {
+  data: T[]
+  error: unknown
+  isLoading: boolean
+  hasNextPage: boolean
+  isFetchingNextPage: boolean
+  fetchNextPage: () => Promise<void>
+  refetch: () => Promise<void>
+}
 
-/**
- * Creates a new API instance with built-in React hooks (`fetch`, `mutation`, `infinite`)
- * for performing typed data fetching and mutations with progress tracking.
- *
- * @param options - Optional configuration for the API instance (e.g. baseURL, default headers).
- * @returns An object containing data hooks (`fetch`, `mutation`, `infinite`), cache manipulation methods, and interceptor registration.
- *
- * @example
- * ```tsx
- * const api = createApi({ baseURL: '/api' })
- *
- * const { data, isLoading, refetch } = api.fetch<User[]>('/users')
- *
- * const { mutate, isLoading, progress } = api.mutation<User, FormData>('/users', { method: 'POST' })
- *
- * const { data, isLoading, refetch } = api.infinite<User[]>('/users', { initialOffset: 0 })
- * ```
- */
-export default function createApi(options: TApiInstanceOptions = {}) {
-  const instance = new ApiInstance(options)
-
+export type TApiHooks = {
   /**
    * React hook for data fetching with built-in loading, error, and refetch states.
    *
@@ -83,6 +71,134 @@ export default function createApi(options: TApiInstanceOptions = {}) {
    * const { data, isLoading, refetch } = api.fetch<User[]>('/users')
    * ```
    */
+  fetch: <T>(url: string, config?: Omit<THttpConfig, 'onUpload' | 'onDownload'>, enabled?: boolean) => TFetchResult<T>
+
+  /**
+   * React hook for making data mutations (e.g. POST, PUT, DELETE) with built-in
+   * loading state, upload/download progress tracking, and request deduplication.
+   *
+   * @typeParam TData - Expected data type of the response.
+   * @typeParam TRequest - Payload type for the mutation body or query param.
+   *
+   * @param url - Endpoint URL for the mutation.
+   * @param config - Optional mutation config (method, headers, cache, progress, etc.) with queryMutation for bad practice mutate fetching using query while true.
+   *
+   * @returns An object with:
+   * - `mutate(request)`: Function to trigger the mutation.
+   * - `isLoading`: Whether the request is currently in progress.
+   * - `cacheKey`: Identifier for caching this request.
+   * - `progress`: Download or Upload progress info (loaded, total, percentage) - only available when progress is enabled
+   *
+   * @example
+   * ```tsx
+   *
+   * // With upload progress
+   * const { mutate, isLoading, progress } = api.mutation<User, FormData>('/upload', {
+   *   method: 'POST',
+   *   progress: 'upload'
+   * })
+   *
+   * const handleSubmit = async (form: FormData) => {
+   *   const { data } = await mutate(form)
+   *   console.log(data)
+   * }
+   *
+   * // Show progress
+   * {progress && <div>Uploaded: {progress.percentage}%</div>}
+   * ```
+   */
+  mutation: <TData, TRequest = void>(url: string, config?: TMutationOptions) => TMutationResult<TData, TRequest>
+
+  /**
+   * React hook for infinite pagination fetching with custom offset logic.
+   *
+   * @typeParam T - Expected data type from the API response.
+   * @param url - Endpoint URL (relative to instance baseURL).
+   * @param options - Infinite pagination options.
+   * @param config - Optional HTTP configuration (headers, params, etc.).
+   * @returns Object containing paginated data, loading states, and pagination controls.
+   *
+   * @example
+   * ```tsx
+   * const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } = api.infinite<User[]>('/users', {
+   *   initialOffset: 0,
+   *   setOffset: (lastItems, allItems, lastOffset) => {
+   *     return lastItems.length ? lastOffset + 10 : null
+   *   },
+   * })
+   * ```
+   */
+  infinite: <T>(url: string, options: TInfiniteFetchOptions<T>, config?: THttpConfig) => TInfiniteFetchResult<T>
+
+  // ----------- cache ops -----------
+  /**
+   * Retrieves a cached response by its key.
+   * @param key - Unique cache key.
+   * @returns Cached data or `undefined` if not found.
+   */
+  getCache: <T>(key: string) => T | undefined
+
+  /**
+   * Stores data in cache.
+   * @param key - Cache key.
+   * @param data - Data to store.
+   * @param ttl - Optional time-to-live in milliseconds.
+   */
+  setCache: <T>(key: string, data: T, ttl?: number) => void
+
+  /**
+   * Removes a single cached entry.
+   * @param key - Cache key to remove.
+   */
+  removeCache: (key: string) => void
+
+  /**
+   * Clears all cache entries.
+   */
+  clearCache: () => void
+
+  // ----------- interceptors -----------
+
+  /**
+   * Registers custom request/response interceptors.
+   *
+   * @param interceptors - Object containing optional `request`, `response`, and `error` interceptors.
+   *
+   * @example
+   * ```ts
+   * api.setInterceptors({
+   *   request: config => config,
+   *   response: res => res,
+   *   error: err => Promise.reject(err),
+   * })
+   * ```
+   */
+  setInterceptors: (interceptors: IApiInterceptor) => void
+}
+
+const pendingRequests: Map<string, Promise<TApiResponse<unknown>>> = new Map()
+
+/**
+ * Creates a new API instance with built-in React hooks (`fetch`, `mutation`, `infinite`)
+ * for performing typed data fetching and mutations with progress tracking.
+ *
+ * @param options - Optional configuration for the API instance (e.g. baseURL, default headers).
+ * @returns An object containing data hooks (`fetch`, `mutation`, `infinite`), cache manipulation methods, and interceptor registration.
+ *
+ * @example
+ * ```tsx
+ * const api = createApi({ baseURL: '/api' })
+ *
+ * const { data, isLoading, refetch } = api.fetch<User[]>('/users')
+ *
+ * const { mutate, isLoading, progress } = api.mutation<User, FormData>('/users', { method: 'POST' })
+ *
+ * const { data, isLoading, refetch } = api.infinite<User[]>('/users', { initialOffset: 0 })
+ * ```
+ */
+export default function createApi(options: TApiInstanceOptions = {}): TApiHooks {
+  const instance = new ApiInstance(options)
+
   function useFetch<T>(
     url: string,
     config?: Omit<THttpConfig, 'onUpload' | 'onDownload'>,
@@ -116,9 +232,10 @@ export default function createApi(options: TApiInstanceOptions = {}) {
         if (abortControllerRef.current) abortControllerRef.current.abort()
         abortControllerRef.current = new AbortController()
 
-        if (!state.isLoading) {
-          setState(s => ({ ...s, isLoading: true }))
-        }
+        setState(s => {
+          if (s.isLoading) return s
+          return { ...s, isLoading: true }
+        })
 
         try {
           const response = await instance.get<T>(url, {
@@ -158,40 +275,6 @@ export default function createApi(options: TApiInstanceOptions = {}) {
     return { ...state, refetch: () => fetchData(true) }
   }
 
-  /**
-   * React hook for making data mutations (e.g. POST, PUT, DELETE) with built-in
-   * loading state, upload/download progress tracking, and request deduplication.
-   *
-   * @typeParam TData - Expected data type of the response.
-   * @typeParam TRequest - Payload type for the mutation body or query param.
-   *
-   * @param url - Endpoint URL for the mutation.
-   * @param config - Optional mutation config (method, headers, cache, progress, etc.) with queryMutation for bad practice mutate fetching using query while true.
-   *
-   * @returns An object with:
-   * - `mutate(request)`: Function to trigger the mutation.
-   * - `isLoading`: Whether the request is currently in progress.
-   * - `cacheKey`: Identifier for caching this request.
-   * - `progress`: Download or Upload progress info (loaded, total, percentage) - only available when progress is enabled
-   *
-   * @example
-   * ```tsx
-   *
-   * // With upload progress
-   * const { mutate, isLoading, progress } = api.mutation<User, FormData>('/upload', {
-   *   method: 'POST',
-   *   progress: 'upload'
-   * })
-   *
-   * const handleSubmit = async (form: FormData) => {
-   *   const { data } = await mutate(form)
-   *   console.log(data)
-   * }
-   *
-   * // Show progress
-   * {progress && <div>Uploaded: {progress.percentage}%</div>}
-   * ```
-   */
   function useMutation<TData, TRequest = void>(
     url: string,
     config?: TMutationOptions,
@@ -289,26 +372,11 @@ export default function createApi(options: TApiInstanceOptions = {}) {
     return { mutate, ...state }
   }
 
-  /**
-   * React hook for infinite pagination fetching with custom offset logic.
-   *
-   * @typeParam T - Expected data type from the API response.
-   * @param url - Endpoint URL (relative to instance baseURL).
-   * @param options - Infinite pagination options.
-   * @param config - Optional HTTP configuration (headers, params, etc.).
-   * @returns Object containing paginated data, loading states, and pagination controls.
-   *
-   * @example
-   * ```tsx
-   * const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } = api.infinite<User[]>('/users', {
-   *   initialOffset: 0,
-   *   setOffset: (lastItems, allItems, lastOffset) => {
-   *     return lastItems.length ? lastOffset + 10 : null
-   *   },
-   * })
-   * ```
-   */
-  function useInfiniteFetch<T>(url: string, options: TInfiniteFetchOptions<T>, config?: THttpConfig) {
+  function useInfiniteFetch<T>(
+    url: string,
+    options: TInfiniteFetchOptions<T>,
+    config?: THttpConfig,
+  ): TInfiniteFetchResult<T> {
     const { initialOffset, offsetKey, setOffset } = options
     const abortControllerRef = useRef<AbortController | null>(null)
 
@@ -405,48 +473,12 @@ export default function createApi(options: TApiInstanceOptions = {}) {
     infinite: useInfiniteFetch,
 
     // ----------- cache ops -----------
-    /**
-     * Retrieves a cached response by its key.
-     * @param key - Unique cache key.
-     * @returns Cached data or `undefined` if not found.
-     */
     getCache: <T>(key: string) => instance.getCache<T>(key),
-
-    /**
-     * Stores data in cache.
-     * @param key - Cache key.
-     * @param data - Data to store.
-     * @param ttl - Optional time-to-live in milliseconds.
-     */
     setCache: <T>(key: string, data: T, ttl?: number) => instance.setCache<T>(key, data, ttl),
-
-    /**
-     * Removes a single cached entry.
-     * @param key - Cache key to remove.
-     */
     removeCache: (key: string) => instance.removeCache(key),
-
-    /**
-     * Clears all cache entries.
-     */
     clearCache: () => instance.clearCache(),
 
     // ----------- interceptors -----------
-
-    /**
-     * Registers custom request/response interceptors.
-     *
-     * @param interceptors - Object containing optional `request`, `response`, and `error` interceptors.
-     *
-     * @example
-     * ```ts
-     * api.setInterceptors({
-     *   request: config => config,
-     *   response: res => res,
-     *   error: err => Promise.reject(err),
-     * })
-     * ```
-     */
     setInterceptors: (interceptors: IApiInterceptor) => instance.setInterceptors(interceptors),
   }
 }
