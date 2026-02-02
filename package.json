@@ -1,6 +1,6 @@
 {
   "name": "@fajarmaulana/komerce-lp-helper",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Helper functions, hooks, and utils for Komerce LP",
   "type": "module",
   "main": "dist/index.js",
