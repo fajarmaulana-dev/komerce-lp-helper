@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.4.2
+
+### Patch Changes
+
+- 20dc360: change data variant on section observer
+
 ## 0.4.1
 
 ### Patch Changes
