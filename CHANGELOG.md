@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.4.1
+
+### Patch Changes
+
+- ea00337: change data variant for sectionObserver
+
 ## 0.4.0
 
 ### Minor Changes
