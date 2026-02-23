@@ -42,12 +42,12 @@ export const useSectionObserver = ({ triggerRef, targetId, threshold = 0.8 }: TS
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          container.setAttribute('data-state', 'active')
+          container.setAttribute('data-active', 'true')
           return
         }
 
         if (entry.boundingClientRect.top > 0) {
-          container.setAttribute('data-state', 'inactive')
+          container.setAttribute('data-active', 'false')
         }
       },
       { threshold },
