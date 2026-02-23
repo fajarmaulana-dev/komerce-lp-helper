@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.4.0
+
+### Minor Changes
+
+- b58b968: add useBatch
+
 ## 0.3.3
 
 ### Patch Changes
