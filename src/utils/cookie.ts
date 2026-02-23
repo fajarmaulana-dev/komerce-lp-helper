@@ -13,7 +13,8 @@ type TCookie<T> = {
  */
 export const setCookie = <T>({ key, value, maxAge }: TCookie<T>): void => {
   const serializedValue = JSON.stringify(value)
-  document.cookie = `${key}=${serializedValue}${maxAge ? `; Max-Age=${maxAge}` : ''}; Secure; SameSite=Strict; path=/`
+  const encodedValue = encodeURIComponent(serializedValue)
+  document.cookie = `${key}=${encodedValue}${maxAge ? `; Max-Age=${maxAge}` : ''}; Secure; SameSite=Lax; path=/`
 }
 
 /**
@@ -66,7 +67,7 @@ export const getCookies = <T extends Record<string, unknown>, K extends keyof T 
  * @param key - The key of the cookie to remove.
  */
 export const removeCookie = (key: string): void => {
-  document.cookie = `${key}=; Max-Age=0; Secure; SameSite=Strict; path=/`
+  document.cookie = `${key}=; Max-Age=0; Secure; SameSite=Lax; path=/`
 }
 
 /**

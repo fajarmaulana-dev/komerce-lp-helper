@@ -50,7 +50,18 @@ type TInfiniteFetchResult<T> = {
   refetch: () => Promise<void>
 }
 
-export type TApiHooks = {
+type TBatchResponse<T extends unknown[]> = {
+  [K in keyof T]: TApiResponse<T[K]>
+}
+
+type TBatchResult<T extends unknown[]> = {
+  mutate: (overrideRequests?: { [K in keyof T]: string | TApiConfig }) => Promise<TBatchResponse<T>>
+  isLoading: boolean
+  error: unknown
+  cacheKeys: (string | null)[]
+}
+
+export interface IApiHooks {
   /**
    * React hook for data fetching with built-in loading, error, and refetch states.
    *
@@ -108,6 +119,34 @@ export type TApiHooks = {
    * ```
    */
   mutation: <TData, TRequest = void>(url: string, config?: TMutationOptions) => TMutationResult<TData, TRequest>
+
+  /**
+   * React hook for executing multiple API requests in parallel.
+   *
+   * @typeParam T - A tuple of expected data types for each request.
+   * @param initialRequests - Optional array of URLs or full request configurations.
+   *
+   * @returns An object with:
+   * - `mutate(overrideRequests)`: Function to trigger the batch execution.
+   * - `isLoading`: Whether any request in the batch is in progress.
+   * - `error`: The first error encountered during execution.
+   * - `cacheKeys`: Array of cache keys for each request in the batch.
+   *
+   * @example
+   * ```tsx
+   * const { mutate, isLoading } = api.batch<[User[], Post[]]>([
+   *   '/users',
+   *   { url: '/posts', method: 'GET' }
+   * ])
+   *
+   * const handleLoad = async () => {
+   *   const results = await mutate()
+   *   const users = results[0].data
+   *   const posts = results[1].data
+   * }
+   * ```
+   */
+  batch: <T extends unknown[]>(initialRequests?: { [K in keyof T]: string | TApiConfig }) => TBatchResult<T>
 
   /**
    * React hook for infinite pagination fetching with custom offset logic.
@@ -196,7 +235,7 @@ const pendingRequests: Map<string, Promise<TApiResponse<unknown>>> = new Map()
  * const { data, isLoading, refetch } = api.infinite<User[]>('/users', { initialOffset: 0 })
  * ```
  */
-export default function createApi(options: TApiInstanceOptions = {}): TApiHooks {
+export default function createApi(options: TApiInstanceOptions = {}): IApiHooks {
   const instance = new ApiInstance(options)
 
   function useFetch<T>(
@@ -276,6 +315,66 @@ export default function createApi(options: TApiInstanceOptions = {}): TApiHooks 
     }, [fetchData])
 
     return { ...state, refetch: () => fetchData(true) }
+  }
+
+  function useBatch<T extends unknown[]>(initialRequests?: { [K in keyof T]: string | TApiConfig }): TBatchResult<T> {
+    const [isLoading, setIsLoading] = useState(false)
+    const [error, setError] = useState<unknown>(null)
+    const [cacheKeys, setCacheKeys] = useState<(string | null)[]>([])
+    const abortControllerRef = useRef<AbortController | null>(null)
+
+    const baseRequests = useRef(initialRequests)
+    useEffect(() => {
+      baseRequests.current = initialRequests
+    }, [initialRequests])
+
+    const mutate = useCallback(
+      async (overrideRequests?: { [K in keyof T]: string | TApiConfig }): Promise<TBatchResponse<T>> => {
+        const targetRequests = overrideRequests || baseRequests.current
+        if (!targetRequests) throw new Error('No requests defined for batch execution.')
+
+        if (abortControllerRef.current) abortControllerRef.current.abort()
+        abortControllerRef.current = new AbortController()
+
+        setIsLoading(true)
+        setError(null)
+
+        try {
+          const promises = (targetRequests as (string | TApiConfig)[]).map(req => {
+            const config: TApiConfig = typeof req === 'string' ? { url: req, method: 'GET' } : req
+            return instance.request({
+              ...config,
+              signal: abortControllerRef.current?.signal,
+            })
+          })
+
+          const results = await Promise.all(promises)
+          setCacheKeys(results.map(res => res.cacheKey ?? null))
+          return results as unknown as TBatchResponse<T>
+        } catch (err) {
+          if (!(err instanceof Error && err.name === 'AbortError')) {
+            setError(err)
+          }
+          throw err
+        } finally {
+          setIsLoading(false)
+        }
+      },
+      [instance],
+    )
+
+    useEffect(() => {
+      return () => {
+        if (abortControllerRef.current) abortControllerRef.current.abort()
+      }
+    }, [])
+
+    return {
+      mutate,
+      isLoading,
+      error,
+      cacheKeys,
+    }
   }
 
   function useMutation<TData, TRequest = void>(
@@ -472,6 +571,7 @@ export default function createApi(options: TApiInstanceOptions = {}): TApiHooks 
   return {
     // ----------- React hooks API -----------
     fetch: useFetch,
+    batch: useBatch,
     mutation: useMutation,
     infinite: useInfiniteFetch,
 
