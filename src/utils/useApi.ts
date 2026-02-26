@@ -321,7 +321,6 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<unknown>(null)
     const [cacheKeys, setCacheKeys] = useState<(string | null)[]>([])
-    const abortControllerRef = useRef<AbortController | null>(null)
     const isMountedRef = useRef(true)
     const baseRequests = useRef(initialRequests)
 
@@ -341,9 +340,6 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
         const targetRequests = overrideRequests || baseRequests.current
         if (!targetRequests) throw new Error('No requests defined for batch execution.')
 
-        if (abortControllerRef.current) abortControllerRef.current.abort()
-        const controller = new AbortController()
-        abortControllerRef.current = controller
         if (isMountedRef.current) {
           setIsLoading(true)
           setError(null)
@@ -352,10 +348,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
         try {
           const promises = (targetRequests as (string | TApiConfig)[]).map(req => {
             const config: TApiConfig = typeof req === 'string' ? { url: req, method: 'GET' } : req
-            return instance.request({
-              ...config,
-              signal: controller.signal,
-            })
+            return instance.request(config)
           })
 
           const results = await Promise.all(promises)
@@ -367,7 +360,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
         } catch (err) {
           if (err instanceof Error && err.name === 'AbortError') {
             if (isMountedRef.current) setIsLoading(false)
-            throw err
+            return new Promise<TBatchResponse<T>>(() => {})
           }
           if (isMountedRef.current) {
             setError(err)
@@ -391,7 +384,6 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
     url: string,
     config?: TMutationOptions,
   ): TMutationResult<TData, TRequest> {
-    const abortControllerRef = useRef<AbortController | null>(null)
     const isMountedRef = useRef(true)
 
     const [state, setState] = useState<Omit<TMutationResult<TData, TRequest>, 'mutate'>>({
@@ -421,11 +413,6 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
 
     const mutate = useCallback(
       async (request?: TRequest): Promise<TApiResponse<TData>> => {
-        if (abortControllerRef.current) abortControllerRef.current.abort()
-        const controller = new AbortController()
-        abortControllerRef.current = controller
-        const signal = config?.signal ? config.signal : controller.signal
-
         if (isMountedRef.current) {
           setState(s => ({ ...s, isLoading: true, progress: null }))
         }
@@ -447,7 +434,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
             requestPromise = instance.get<TData>(url, {
               ...stableConfig,
               params: request as THttpConfig['params'],
-              signal,
+              signal: stableConfig?.signal,
               onDownload: shouldTrackDownload
                 ? progress => {
                     if (isMountedRef.current) {
@@ -462,7 +449,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
               url: config?.queryMutation ? buildURL(url, request as THttpConfig['params']) : url,
               method,
               body: request ? (request as globalThis.BodyInit) : undefined,
-              signal,
+              signal: stableConfig?.signal,
               onUpload: shouldTrackUpload
                 ? progress => {
                     if (isMountedRef.current) {
@@ -490,7 +477,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
             if (isMountedRef.current) {
               setState(s => ({ ...s, isLoading: false, progress: null }))
             }
-            throw err
+            return new Promise<TApiResponse<TData>>(() => {})
           }
           if (isMountedRef.current) {
             setState({ isLoading: false, cacheKey: null, progress: null })
