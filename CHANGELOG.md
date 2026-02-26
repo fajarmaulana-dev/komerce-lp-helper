@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.4.3
+
+### Patch Changes
+
+- 70499ed: fix error mutation
+
 ## 0.4.2
 
 ### Patch Changes
