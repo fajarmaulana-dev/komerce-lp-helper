@@ -322,11 +322,19 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
     const [error, setError] = useState<unknown>(null)
     const [cacheKeys, setCacheKeys] = useState<(string | null)[]>([])
     const abortControllerRef = useRef<AbortController | null>(null)
-
+    const isMountedRef = useRef(true)
     const baseRequests = useRef(initialRequests)
+
     useEffect(() => {
       baseRequests.current = initialRequests
     }, [initialRequests])
+
+    useEffect(() => {
+      isMountedRef.current = true
+      return () => {
+        isMountedRef.current = false
+      }
+    }, [])
 
     const mutate = useCallback(
       async (overrideRequests?: { [K in keyof T]: string | TApiConfig }): Promise<TBatchResponse<T>> => {
@@ -334,40 +342,42 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
         if (!targetRequests) throw new Error('No requests defined for batch execution.')
 
         if (abortControllerRef.current) abortControllerRef.current.abort()
-        abortControllerRef.current = new AbortController()
-
-        setIsLoading(true)
-        setError(null)
+        const controller = new AbortController()
+        abortControllerRef.current = controller
+        if (isMountedRef.current) {
+          setIsLoading(true)
+          setError(null)
+        }
 
         try {
           const promises = (targetRequests as (string | TApiConfig)[]).map(req => {
             const config: TApiConfig = typeof req === 'string' ? { url: req, method: 'GET' } : req
             return instance.request({
               ...config,
-              signal: abortControllerRef.current?.signal,
+              signal: controller.signal,
             })
           })
 
           const results = await Promise.all(promises)
-          setCacheKeys(results.map(res => res.cacheKey ?? null))
+          if (isMountedRef.current) {
+            setCacheKeys(results.map(res => res.cacheKey ?? null))
+            setIsLoading(false)
+          }
           return results as unknown as TBatchResponse<T>
         } catch (err) {
-          if (!(err instanceof Error && err.name === 'AbortError')) {
+          if (err instanceof Error && err.name === 'AbortError') {
+            if (isMountedRef.current) setIsLoading(false)
+            throw err
+          }
+          if (isMountedRef.current) {
             setError(err)
+            setIsLoading(false)
           }
           throw err
-        } finally {
-          setIsLoading(false)
         }
       },
       [instance],
     )
-
-    useEffect(() => {
-      return () => {
-        if (abortControllerRef.current) abortControllerRef.current.abort()
-      }
-    }, [])
 
     return {
       mutate,
@@ -382,6 +392,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
     config?: TMutationOptions,
   ): TMutationResult<TData, TRequest> {
     const abortControllerRef = useRef<AbortController | null>(null)
+    const isMountedRef = useRef(true)
 
     const [state, setState] = useState<Omit<TMutationResult<TData, TRequest>, 'mutate'>>({
       isLoading: false,
@@ -401,11 +412,23 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
       ],
     )
 
+    useEffect(() => {
+      isMountedRef.current = true
+      return () => {
+        isMountedRef.current = false
+      }
+    }, [])
+
     const mutate = useCallback(
       async (request?: TRequest): Promise<TApiResponse<TData>> => {
         if (abortControllerRef.current) abortControllerRef.current.abort()
-        abortControllerRef.current = new AbortController()
-        setState(s => ({ ...s, isLoading: true, progress: null }))
+        const controller = new AbortController()
+        abortControllerRef.current = controller
+        const signal = config?.signal ? config.signal : controller.signal
+
+        if (isMountedRef.current) {
+          setState(s => ({ ...s, isLoading: true, progress: null }))
+        }
 
         let requestKey: string = ''
         try {
@@ -424,10 +447,12 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
             requestPromise = instance.get<TData>(url, {
               ...stableConfig,
               params: request as THttpConfig['params'],
-              signal: abortControllerRef.current.signal,
+              signal,
               onDownload: shouldTrackDownload
                 ? progress => {
-                    setState(s => ({ ...s, progress: progress }))
+                    if (isMountedRef.current) {
+                      setState(s => ({ ...s, progress: progress }))
+                    }
                   }
                 : undefined,
             })
@@ -437,10 +462,12 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
               url: config?.queryMutation ? buildURL(url, request as THttpConfig['params']) : url,
               method,
               body: request ? (request as globalThis.BodyInit) : undefined,
-              signal: abortControllerRef.current.signal,
+              signal,
               onUpload: shouldTrackUpload
                 ? progress => {
-                    setState(s => ({ ...s, progress }))
+                    if (isMountedRef.current) {
+                      setState(s => ({ ...s, progress }))
+                    }
                   }
                 : undefined,
             })
@@ -448,15 +475,26 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
 
           pendingRequests.set(requestKey, requestPromise)
           const response = await requestPromise
-          setState({
-            isLoading: false,
-            cacheKey: response.cacheKey ?? null,
-            progress: null,
-          })
+
+          if (isMountedRef.current) {
+            setState({
+              isLoading: false,
+              cacheKey: response.cacheKey ?? null,
+              progress: null,
+            })
+          }
 
           return response
         } catch (err) {
-          setState({ isLoading: false, cacheKey: null, progress: null })
+          if (err instanceof Error && err.name === 'AbortError') {
+            if (isMountedRef.current) {
+              setState(s => ({ ...s, isLoading: false, progress: null }))
+            }
+            throw err
+          }
+          if (isMountedRef.current) {
+            setState({ isLoading: false, cacheKey: null, progress: null })
+          }
           throw err
         } finally {
           if (pendingRequests.has(requestKey)) pendingRequests.delete(requestKey)
@@ -464,12 +502,6 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
       },
       [url, stableConfig],
     )
-
-    useEffect(() => {
-      return () => {
-        if (abortControllerRef.current) abortControllerRef.current.abort()
-      }
-    }, [])
 
     return { mutate, ...state }
   }
