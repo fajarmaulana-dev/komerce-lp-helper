@@ -434,11 +434,13 @@ export class ApiInstance implements IApiInstance {
               throw new ApiMeta(code, message, status)
             }
             throw new ApiMeta(res.status, error.message || JSON.stringify(error), res.statusText)
-          } catch {
+          } catch (jsonError) {
+            if (jsonError instanceof ApiMeta) throw jsonError
             try {
               const errorText = await res.text()
               throw new ApiMeta(res.status, errorText || res.statusText || 'Unknown error', res.statusText)
-            } catch {
+            } catch (textError) {
+              if (textError instanceof ApiMeta) throw textError
               throw new ApiMeta(res.status, res.statusText || 'Unknown error', res.statusText)
             }
           }
@@ -566,7 +568,8 @@ export class ApiInstance implements IApiInstance {
             throw new ApiMeta(code, message, status)
           }
           throw new ApiMeta(finalResponse.status, error.message || JSON.stringify(error), finalResponse.statusText)
-        } catch {
+        } catch (jsonError) {
+          if (jsonError instanceof ApiMeta) throw jsonError
           try {
             const errorText = await finalResponse.text()
             throw new ApiMeta(
@@ -574,7 +577,8 @@ export class ApiInstance implements IApiInstance {
               errorText || finalResponse.statusText || 'Unknown error',
               finalResponse.statusText,
             )
-          } catch {
+          } catch (textError) {
+            if (textError instanceof ApiMeta) throw textError
             throw new ApiMeta(
               finalResponse.status,
               finalResponse.statusText || 'Unknown error',
