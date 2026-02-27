@@ -425,14 +425,23 @@ export class ApiInstance implements IApiInstance {
 
         if (!res.ok) {
           const clonedRes = res.clone()
-          const error = await clonedRes.json()
-          if (error.meta || error.status) {
-            const code = error.code || error.meta.code || res.status
-            const message = error.message || error.meta.message || JSON.stringify(error)
-            const status = error.status || error.meta.status || res.statusText
-            throw new ApiMeta(code, message, status)
+          try {
+            const error = await clonedRes.json()
+            if (error.meta || error.status) {
+              const code = error.code || error.meta.code || res.status
+              const message = error.message || error.meta.message || JSON.stringify(error)
+              const status = error.status || error.meta.status || res.statusText
+              throw new ApiMeta(code, message, status)
+            }
+            throw new ApiMeta(res.status, error.message || JSON.stringify(error), res.statusText)
+          } catch {
+            try {
+              const errorText = await res.text()
+              throw new ApiMeta(res.status, errorText || res.statusText || 'Unknown error', res.statusText)
+            } catch {
+              throw new ApiMeta(res.status, res.statusText || 'Unknown error', res.statusText)
+            }
           }
-          throw error
         }
         return res
       } catch (err) {
@@ -556,10 +565,22 @@ export class ApiInstance implements IApiInstance {
             const status = error.status || error.meta.status || finalResponse.statusText
             throw new ApiMeta(code, message, status)
           }
-          throw error
+          throw new ApiMeta(finalResponse.status, error.message || JSON.stringify(error), finalResponse.statusText)
         } catch {
-          const errorText = await finalResponse.text()
-          throw new Error(errorText || finalResponse.statusText)
+          try {
+            const errorText = await finalResponse.text()
+            throw new ApiMeta(
+              finalResponse.status,
+              errorText || finalResponse.statusText || 'Unknown error',
+              finalResponse.statusText,
+            )
+          } catch {
+            throw new ApiMeta(
+              finalResponse.status,
+              finalResponse.statusText || 'Unknown error',
+              finalResponse.statusText,
+            )
+          }
         }
       }
 
