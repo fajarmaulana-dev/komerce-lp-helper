@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.4.6
+
+### Patch Changes
+
+- c5ac329: improve api error handling
+
 ## 0.4.5
 
 ### Patch Changes
