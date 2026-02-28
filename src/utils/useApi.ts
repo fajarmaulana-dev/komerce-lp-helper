@@ -66,20 +66,29 @@ export interface IApiHooks {
    * React hook for data fetching with built-in loading, error, and refetch states.
    *
    * @typeParam T - Expected data type from the API response.
-   * @param url - The endpoint URL (relative to instance baseURL).
-   * @param config - Optional HTTP configuration (headers, params, cache, etc.).
-   * @param enabled - Whether the fetch should run automatically on mount.
+   * @param url - The endpoint URL (relative to instance baseURL). Changing this value automatically triggers a new request.
+   * @param config - Optional HTTP configuration (headers, params, cache, etc.). This acts as hook dependency.
+   * @param enabled - Whether the fetch should run automatically on mount or when URL changes.
    *
    * @returns An object with:
    * - `data`: fetched data or `null`
    * - `error`: any error encountered
    * - `isLoading`: request state
    * - `cacheKey`: identifier for caching this request
-   * - `refetch()`: manually trigger a new fetch
+   * - `refetch()`: manually trigger a fresh fetch without changing dependencies
    *
    * @example
    * ```tsx
+   * // 1. Basic static mapping
    * const { data, isLoading, refetch } = api.fetch<User[]>('/users')
+   *
+   * // 2. Dynamic URL with automatic refetch when ID changes
+   * // Provide a dynamic template string. Adding `!!userId` to `enabled` mapping prevents fetching if ID is empty.
+   * const { data: userProfile } = api.fetch<User>(
+   *   userId ? `/users/${userId}` : '',
+   *   undefined,
+   *   !!userId
+   * )
    * ```
    */
   fetch: <T>(url: string, config?: Omit<THttpConfig, 'onUpload' | 'onDownload'>, enabled?: boolean) => TFetchResult<T>
@@ -91,7 +100,7 @@ export interface IApiHooks {
    * @typeParam TData - Expected data type of the response.
    * @typeParam TRequest - Payload type for the mutation body or query param.
    *
-   * @param url - Endpoint URL for the mutation.
+   * @param url - Endpoint URL for the mutation. Can be dynamic if re-initialized.
    * @param config - Optional mutation config (method, headers, cache, progress, etc.) with queryMutation for bad practice mutate fetching using query while true.
    *
    * @returns An object with:
@@ -102,19 +111,24 @@ export interface IApiHooks {
    *
    * @example
    * ```tsx
+   * // 1. Basic POST request
+   * const { mutate: createUser } = api.mutation<User, Partial<User>>('/users', { method: 'POST' })
    *
-   * // With upload progress
-   * const { mutate, isLoading, progress } = api.mutation<User, FormData>('/upload', {
+   * // 2. Dynamic URL based on ID
+   * const { mutate: updateProfile } = api.mutation<User, Partial<User>>(`/users/${userId}`, { method: 'PUT' })
+   *
+   * // 3. With upload progress
+   * const { mutate: uploadFile, isLoading, progress } = api.mutation<any, FormData>('/upload', {
    *   method: 'POST',
    *   progress: 'upload'
    * })
    *
    * const handleSubmit = async (form: FormData) => {
-   *   const { data } = await mutate(form)
+   *   const { data } = await uploadFile(form)
    *   console.log(data)
    * }
    *
-   * // Show progress
+   * // Show progress in JSX
    * {progress && <div>Uploaded: {progress.percentage}%</div>}
    * ```
    */
@@ -152,22 +166,38 @@ export interface IApiHooks {
    * React hook for infinite pagination fetching with custom offset logic.
    *
    * @typeParam T - Expected data type from the API response.
-   * @param url - Endpoint URL (relative to instance baseURL).
+   * @param url - Endpoint URL (relative to instance baseURL). Changing this value automatically resets the items and fetches from the beginning on the new URL.
    * @param options - Infinite pagination options.
-   * @param config - Optional HTTP configuration (headers, params, etc.).
+   * @param config - Optional HTTP configuration (headers, params, etc.). This acts as hook dependency.
+   * @param enabled - Whether the fetch should run automatically on mount or when URL changes.
    * @returns Object containing paginated data, loading states, and pagination controls.
    *
    * @example
    * ```tsx
-   * const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } = api.infinite<User[]>('/users', {
+   * // 1. Basic usage
+   * const { data, isLoading, hasNextPage, fetchNextPage } = api.infinite<User[]>('/users', {
    *   initialOffset: 0,
    *   setOffset: (lastItems, allItems, lastOffset) => {
    *     return lastItems.length ? lastOffset + 10 : null
    *   },
    * })
+   *
+   * // 2. Dynamic URL with automatic refetch when category ID changes
+   * // When `categoryId` changes, the hook will reset pagination states and re-fetch for the new category path.
+   * const { data: categoryItems } = api.infinite<Item[]>(
+   *   categoryId ? `/categories/${categoryId}/items` : '',
+   *   { initialOffset: 1, setOffset: (last, all, current) => current + 1 },
+   *   undefined,
+   *   !!categoryId
+   * )
    * ```
    */
-  infinite: <T>(url: string, options: TInfiniteFetchOptions<T>, config?: THttpConfig) => TInfiniteFetchResult<T>
+  infinite: <T>(
+    url: string,
+    options: TInfiniteFetchOptions<T>,
+    config?: THttpConfig,
+    enabled?: boolean,
+  ) => TInfiniteFetchResult<T>
 
   // ----------- cache ops -----------
   /**
@@ -496,14 +526,15 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
   function useInfiniteFetch<T>(
     url: string,
     options: TInfiniteFetchOptions<T>,
-    config?: THttpConfig,
+    config?: Omit<THttpConfig, 'onUpload' | 'onDownload'>,
+    enabled: boolean = true,
   ): TInfiniteFetchResult<T> {
     const { initialOffset, offsetKey, setOffset } = options
     const abortControllerRef = useRef<AbortController | null>(null)
 
     const [items, setItems] = useState<T[]>([])
     const [offset, setOffsetState] = useState(initialOffset)
-    const [isLoading, setIsLoading] = useState(false)
+    const [isLoading, setIsLoading] = useState(enabled)
     const [isFetchingNextPage, setIsFetchingNextPage] = useState(false)
     const [hasNextPage, setHasNextPage] = useState(true)
     const [error, setError] = useState<unknown>(null)
@@ -519,7 +550,9 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
     )
 
     const fetchPage = useCallback(
-      async (offsetValue: number, append = false) => {
+      async (offsetValue: number, append = false, isRefetch = false) => {
+        if (!enabled && !append && !isRefetch) return
+
         if (abortControllerRef.current) abortControllerRef.current.abort()
         abortControllerRef.current = new AbortController()
 
@@ -554,7 +587,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
           setIsFetchingNextPage(false)
         }
       },
-      [url, stableConfig, offsetKey],
+      [url, stableConfig, offsetKey, enabled],
     )
 
     const fetchNextPage = useCallback(async () => {
@@ -566,7 +599,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
       setItems([])
       setOffsetState(initialOffset)
       setHasNextPage(true)
-      await fetchPage(initialOffset, false)
+      await fetchPage(initialOffset, false, true)
     }, [initialOffset, fetchPage])
 
     useEffect(() => {
