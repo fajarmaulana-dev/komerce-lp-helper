@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.4.7
+
+### Patch Changes
+
+- a71684f: add useApi docs
+
 ## 0.4.6
 
 ### Patch Changes
