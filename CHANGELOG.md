@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.4.9
+
+### Patch Changes
+
+- 170ebc0: add feature for infinite fetch that accomodate realtime message data fetching
+
 ## 0.4.8
 
 ### Patch Changes
