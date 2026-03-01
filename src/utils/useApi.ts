@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { TPrimitive } from '@/types'
+
 import {
   ApiInstance,
   buildURL,
@@ -34,10 +36,10 @@ type TMutationResult<TData, TRequest> = {
   progress: TProgress | null
 }
 
-type TInfiniteFetchOptions<T> = {
-  initialOffset: number
+type TInfiniteFetchOptions<T, TOffset extends TPrimitive = TPrimitive> = {
+  initialOffset: TOffset
   offsetKey?: string
-  setOffset: (lastItems: T, allItems: T, lastOffset: number) => number | null
+  setOffset: (lastItems: T, allItems: T, lastOffset: TOffset) => TOffset | null
 }
 
 type TInfiniteFetchResult<T> = {
@@ -192,9 +194,9 @@ export interface IApiHooks {
    * )
    * ```
    */
-  infinite: <T>(
+  infinite: <T, TOffset extends TPrimitive = TPrimitive>(
     url: string,
-    options: TInfiniteFetchOptions<T>,
+    options: TInfiniteFetchOptions<T, TOffset>,
     config?: THttpConfig,
     enabled?: boolean,
   ) => TInfiniteFetchResult<T>
@@ -523,9 +525,9 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
     return { mutate, ...state }
   }
 
-  function useInfiniteFetch<T>(
+  function useInfiniteFetch<T, TOffset extends TPrimitive = TPrimitive>(
     url: string,
-    options: TInfiniteFetchOptions<T>,
+    options: TInfiniteFetchOptions<T, TOffset>,
     config?: Omit<THttpConfig, 'onUpload' | 'onDownload'>,
     enabled: boolean = true,
   ): TInfiniteFetchResult<T> {
@@ -551,7 +553,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
     )
 
     const fetchPage = useCallback(
-      async (offsetValue: number, append = false, isRefetch = false) => {
+      async (offsetValue: TOffset, append = false, isRefetch = false) => {
         if (!enabled && !append && !isRefetch) return
 
         if (abortControllerRef.current) abortControllerRef.current.abort()
@@ -563,7 +565,10 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
         try {
           const response = await instance.get<T>(url, {
             ...config,
-            params: { ...(config?.params ?? {}), [offsetKey ?? 'offset']: offsetValue },
+            params: {
+              ...(config?.params ?? {}),
+              [offsetKey ?? 'offset']: offsetValue as TPrimitive,
+            },
             signal: abortControllerRef.current.signal,
           })
 
