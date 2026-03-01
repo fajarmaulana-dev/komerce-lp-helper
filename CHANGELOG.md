@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.4.8
+
+### Patch Changes
+
+- 1f647ce: use null as default response of infinite fetch
+
 ## 0.4.7
 
 ### Patch Changes
