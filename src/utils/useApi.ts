@@ -37,11 +37,11 @@ type TMutationResult<TData, TRequest> = {
 type TInfiniteFetchOptions<T> = {
   initialOffset: number
   offsetKey?: string
-  setOffset: (lastItems: T, allItems: T[], lastOffset: number) => number | null
+  setOffset: (lastItems: T, allItems: T, lastOffset: number) => number | null
 }
 
 type TInfiniteFetchResult<T> = {
-  data: T[]
+  data: T | null
   error: unknown
   isLoading: boolean
   hasNextPage: boolean
@@ -531,8 +531,9 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
   ): TInfiniteFetchResult<T> {
     const { initialOffset, offsetKey, setOffset } = options
     const abortControllerRef = useRef<AbortController | null>(null)
+    const itemsRef = useRef<T | null>(null)
 
-    const [items, setItems] = useState<T[]>([])
+    const [items, setItems] = useState<T | null>(null)
     const [offset, setOffsetState] = useState(initialOffset)
     const [isLoading, setIsLoading] = useState(enabled)
     const [isFetchingNextPage, setIsFetchingNextPage] = useState(false)
@@ -567,9 +568,40 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
           })
 
           const { data } = response
-          setItems(prev => (append ? [...prev, data] : [data]))
+          const currentItems = itemsRef.current
+          let nextItems: T
 
-          const nextOffset = setOffset(data, append ? [...items, data] : [data], offsetValue)
+          if (append && currentItems) {
+            if (Array.isArray(currentItems) && Array.isArray(data)) {
+              nextItems = [...currentItems, ...data] as T
+            } else if (
+              currentItems &&
+              typeof currentItems === 'object' &&
+              'data' in currentItems &&
+              Array.isArray((currentItems as Record<string, unknown>).data) &&
+              data &&
+              typeof data === 'object' &&
+              'data' in data &&
+              Array.isArray((data as Record<string, unknown>).data)
+            ) {
+              nextItems = {
+                ...data,
+                data: [
+                  ...(currentItems as Record<string, unknown[]>).data,
+                  ...(data as Record<string, unknown[]>).data,
+                ],
+              } as T
+            } else {
+              nextItems = data
+            }
+          } else {
+            nextItems = data
+          }
+
+          itemsRef.current = nextItems
+          setItems(nextItems)
+
+          const nextOffset = setOffset(data, nextItems, offsetValue)
           if (nextOffset === null || nextOffset === undefined) {
             setHasNextPage(false)
           } else {
@@ -596,7 +628,8 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
     }, [offset, hasNextPage, isFetchingNextPage, fetchPage])
 
     const refetch = useCallback(async () => {
-      setItems([])
+      itemsRef.current = null
+      setItems(null)
       setOffsetState(initialOffset)
       setHasNextPage(true)
       await fetchPage(initialOffset, false, true)
