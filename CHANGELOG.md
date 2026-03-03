@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.4.10
+
+### Patch Changes
+
+- 5617998: fix abort controller
+
 ## 0.4.9
 
 ### Patch Changes
