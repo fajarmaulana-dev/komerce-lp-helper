@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.4.12
+
+### Patch Changes
+
+- bed493e: add sameSite param for cookie
+
 ## 0.4.11
 
 ### Patch Changes
