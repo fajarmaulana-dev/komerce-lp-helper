@@ -284,6 +284,11 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
       cacheKey: null,
     })
 
+    const stateRef = useRef(state)
+    useEffect(() => {
+      stateRef.current = state
+    }, [state])
+
     const stableConfig = useMemo(
       () => config,
       [
@@ -325,7 +330,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
           return newState
         } catch (err) {
           if (err instanceof Error && err.name === 'AbortError') {
-            return state
+            return stateRef.current
           }
           const newState: TFetchState<T> = {
             data: null,
@@ -337,7 +342,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
           return newState
         }
       },
-      [enabled, url, stableConfig, state],
+      [enabled, url, stableConfig],
     )
 
     useEffect(() => {
@@ -553,6 +558,11 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
       ],
     )
 
+    const setOffsetRef = useRef(setOffset)
+    useEffect(() => {
+      setOffsetRef.current = setOffset
+    }, [setOffset])
+
     const fetchPage = useCallback(
       async (offsetValue: TOffset, append = false, isRefetch = false) => {
         if (!enabled && !append && !isRefetch) return
@@ -608,7 +618,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
           itemsRef.current = nextItems
           setItems(nextItems)
 
-          const nextOffset = setOffset(data, nextItems, offsetValue)
+          const nextOffset = setOffsetRef.current(data, nextItems, offsetValue)
           if (nextOffset === null || nextOffset === undefined) {
             setHasNextPage(false)
           } else {
@@ -628,7 +638,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
           }
         }
       },
-      [url, stableConfig, offsetKey, enabled, setOffset],
+      [url, stableConfig, offsetKey, enabled],
     )
 
     const fetchNextPage = useCallback(async () => {
