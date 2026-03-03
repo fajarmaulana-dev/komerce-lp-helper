@@ -301,7 +301,8 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
         }
 
         if (abortControllerRef.current) abortControllerRef.current.abort()
-        abortControllerRef.current = new AbortController()
+        const controller = new AbortController()
+        abortControllerRef.current = controller
 
         setState(s => {
           if (s.isLoading) return s
@@ -311,7 +312,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
         try {
           const response = await instance.get<T>(url, {
             ...stableConfig,
-            signal: abortControllerRef.current.signal,
+            signal: controller.signal,
           })
 
           const newState: TFetchState<T> = {
@@ -336,7 +337,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
           return newState
         }
       },
-      [enabled, url, stableConfig],
+      [enabled, url, stableConfig, state],
     )
 
     useEffect(() => {
@@ -557,19 +558,20 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
         if (!enabled && !append && !isRefetch) return
 
         if (abortControllerRef.current) abortControllerRef.current.abort()
-        abortControllerRef.current = new AbortController()
+        const controller = new AbortController()
+        abortControllerRef.current = controller
 
         if (!append) setIsLoading(true)
         else setIsFetchingNextPage(true)
 
         try {
           const response = await instance.get<T>(url, {
-            ...config,
+            ...stableConfig,
             params: {
-              ...(config?.params ?? {}),
+              ...(stableConfig?.params ?? {}),
               [offsetKey ?? 'offset']: offsetValue as TPrimitive,
             },
-            signal: abortControllerRef.current.signal,
+            signal: controller.signal,
           })
 
           const { data } = response
@@ -620,11 +622,13 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
             setError(err)
           }
         } finally {
-          setIsLoading(false)
-          setIsFetchingNextPage(false)
+          if (!controller.signal.aborted) {
+            setIsLoading(false)
+            setIsFetchingNextPage(false)
+          }
         }
       },
-      [url, stableConfig, offsetKey, enabled],
+      [url, stableConfig, offsetKey, enabled, setOffset],
     )
 
     const fetchNextPage = useCallback(async () => {
