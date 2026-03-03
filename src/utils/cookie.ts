@@ -2,6 +2,7 @@ type TCookie<T> = {
   key: string
   value: T
   maxAge?: number
+  sameSite?: 'Lax' | 'Strict' | 'None'
 }
 
 /**
@@ -10,11 +11,12 @@ type TCookie<T> = {
  * @param key - The cookie key.
  * @param value - The cookie value (will be JSON-stringified).
  * @param maxAge - Optional max age of the cookie in seconds.
+ * @param sameSite - Optional sameSite config, default = Lax
  */
-export const setCookie = <T>({ key, value, maxAge }: TCookie<T>): void => {
+export const setCookie = <T>({ key, value, maxAge, sameSite = 'Lax' }: TCookie<T>): void => {
   const serializedValue = JSON.stringify(value)
   const encodedValue = encodeURIComponent(serializedValue)
-  document.cookie = `${key}=${encodedValue}${maxAge ? `; Max-Age=${maxAge}` : ''}; Secure; SameSite=Lax; path=/`
+  document.cookie = `${key}=${encodedValue}${maxAge ? `; Max-Age=${maxAge}` : ''}; Secure; SameSite=${sameSite}; path=/`
 }
 
 /**
