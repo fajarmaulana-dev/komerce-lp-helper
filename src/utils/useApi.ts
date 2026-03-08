@@ -22,6 +22,7 @@ type TFetchState<T> = {
 
 type TFetchResult<T> = TFetchState<T> & {
   refetch: () => Promise<TFetchState<T>>
+  setData: (data: T | null | ((prev: T | null) => T | null)) => void
 }
 
 type TMutationOptions = Pick<TApiConfig, 'cache' | 'headers' | 'method' | 'signal'> & {
@@ -50,6 +51,8 @@ type TInfiniteFetchResult<T> = {
   isFetchingNextPage: boolean
   fetchNextPage: () => Promise<void>
   refetch: () => Promise<void>
+  setData: (data: T | null | ((prev: T | null) => T | null)) => void
+  reset: () => void
 }
 
 type TBatchResponse<T extends unknown[]> = {
@@ -78,6 +81,7 @@ export interface IApiHooks {
    * - `isLoading`: request state
    * - `cacheKey`: identifier for caching this request
    * - `refetch()`: manually trigger a fresh fetch without changing dependencies
+   * - `setData(data)`: manually update the fetched data state
    *
    * @example
    * ```tsx
@@ -172,7 +176,16 @@ export interface IApiHooks {
    * @param options - Infinite pagination options.
    * @param config - Optional HTTP configuration (headers, params, etc.). This acts as hook dependency.
    * @param enabled - Whether the fetch should run automatically on mount or when URL changes.
-   * @returns Object containing paginated data, loading states, and pagination controls.
+   * @returns Object containing paginated data, loading states, and pagination controls:
+   * - `data`: aggregated items from all fetched pages
+   * - `error`: any error encountered
+   * - `isLoading`: first page request state
+   * - `hasNextPage`: whether more pages are available
+   * - `isFetchingNextPage`: whether a subsequent page is currently being fetched
+   * - `fetchNextPage()`: trigger fetch for the next offset
+   * - `refetch()`: reset to initial offset and fetch the first page again
+   * - `setData(data)`: manually update the aggregated data state
+   * - `reset()`: reset pagination states and items without immediately fetching
    *
    * @example
    * ```tsx
@@ -352,7 +365,14 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
       }
     }, [fetchData])
 
-    return { ...state, refetch: () => fetchData(true) }
+    const setData = useCallback((updater: T | null | ((prev: T | null) => T | null)) => {
+      setState(s => ({
+        ...s,
+        data: typeof updater === 'function' ? (updater as (prev: T | null) => T | null)(s.data) : updater,
+      }))
+    }, [])
+
+    return { ...state, refetch: () => fetchData(true), setData }
   }
 
   function useBatch<T extends unknown[]>(initialRequests?: { [K in keyof T]: string | TApiConfig }): TBatchResult<T> {
@@ -661,6 +681,22 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
       }
     }, [fetchPage, initialOffset])
 
+    const setData = useCallback((updater: T | null | ((prev: T | null) => T | null)) => {
+      setItems(prev => {
+        const next = typeof updater === 'function' ? (updater as (prev: T | null) => T | null)(prev) : updater
+        itemsRef.current = next
+        return next
+      })
+    }, [])
+
+    const reset = useCallback(() => {
+      itemsRef.current = null
+      setItems(null)
+      setOffsetState(initialOffset)
+      setHasNextPage(true)
+      setError(null)
+    }, [initialOffset])
+
     return {
       data: items,
       error,
@@ -669,6 +705,8 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
       isFetchingNextPage,
       fetchNextPage,
       refetch,
+      setData,
+      reset,
     }
   }
 
