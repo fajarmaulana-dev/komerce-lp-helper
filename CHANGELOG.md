@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.4.13
+
+### Patch Changes
+
+- df5ed32: add setData dan reset function on fetch and infinite
+
 ## 0.4.12
 
 ### Patch Changes
