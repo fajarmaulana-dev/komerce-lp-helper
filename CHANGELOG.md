@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.4.14
+
+### Patch Changes
+
+- e45d437: add baseURL to request config
+
 ## 0.4.13
 
 ### Patch Changes
