@@ -302,8 +302,10 @@ export class ApiInstance implements IApiInstance {
 
   private buildcacheKey(config: TApiConfig): string {
     const keyObj = {
+      baseURL: config.baseURL,
       url: config.url,
       params: config.params,
+      method: config.method || 'GET',
     }
 
     const keyString = JSON.stringify(keyObj)
@@ -522,7 +524,16 @@ export class ApiInstance implements IApiInstance {
 
   async request<T>(config: TApiConfig): Promise<TApiResponse<T>> {
     try {
-      const finalConfig = await this.handleInterceptors(config)
+      const mergedConfig: TApiConfig = {
+        baseURL: this.baseURL,
+        ...config,
+        headers: {
+          ...(this.defaultHeaders as Record<string, string>),
+          ...config.headers,
+        },
+      }
+
+      const finalConfig = await this.handleInterceptors(mergedConfig)
       const cacheKey = this.buildcacheKey(finalConfig)
 
       if (finalConfig.cache && finalConfig.cache.enabled && finalConfig.method === 'GET') {
@@ -536,7 +547,7 @@ export class ApiInstance implements IApiInstance {
         }
       }
 
-      const url = this.baseURL ? `${this.baseURL}${finalConfig.url}` : finalConfig.url
+      const url = finalConfig.baseURL ? `${finalConfig.baseURL}${finalConfig.url}` : finalConfig.url
       const finalURL = buildURL(url, finalConfig.params)
       const isFormData = finalConfig.body instanceof FormData
 
@@ -546,7 +557,6 @@ export class ApiInstance implements IApiInstance {
           method: finalConfig.method || 'GET',
           headers: {
             ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-            ...this.defaultHeaders,
             ...finalConfig.headers,
           },
           body: isFormData ? finalConfig.body : finalConfig.body ? JSON.stringify(finalConfig.body) : undefined,
