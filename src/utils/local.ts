@@ -11,6 +11,13 @@ export const clearLocals = () => localStorage.clear()
 export const removeLocal = (key: string) => localStorage.removeItem(key)
 
 /**
+ * Removes multiple localStorage items by keys.
+ *
+ * @param keys - Array of keys to remove.
+ */
+export const removeLocals = (keys: string[]) => keys.forEach(key => removeLocal(key))
+
+/**
  * Sets an item in localStorage after serializing it to JSON.
  *
  * @param key - The key under which to store the value.
@@ -25,7 +32,7 @@ export const setLocal = <T>(key: string, value: T) => localStorage.setItem(key, 
  */
 export const setLocals = <T extends Record<string, unknown>>(
   items: { [K in keyof T]: { key: K & string; value: T[K] } }[keyof T][],
-): void => {
+) => {
   items.forEach(item => setLocal(item.key, item.value))
 }
 
