@@ -1,5 +1,11 @@
 # @fajarmaulana/komerce-lp-helper
 
+## 0.4.15
+
+### Patch Changes
+
+- 3bcc885: add documentation
+
 ## 0.4.14
 
 ### Patch Changes
