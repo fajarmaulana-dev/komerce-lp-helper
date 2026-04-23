@@ -496,7 +496,7 @@ export default function createApi(options: TApiInstanceOptions = {}): IApiHooks 
               onDownload: shouldTrackDownload
                 ? progress => {
                     if (isMountedRef.current) {
-                      setState(s => ({ ...s, progress: progress }))
+                      setState(s => ({ ...s, progress }))
                     }
                   }
                 : undefined,

@@ -13,7 +13,7 @@ type TCookie<T> = {
  * @param maxAge - Optional max age of the cookie in seconds.
  * @param sameSite - Optional sameSite config, default = Lax
  */
-export const setCookie = <T>({ key, value, maxAge, sameSite = 'Lax' }: TCookie<T>): void => {
+export const setCookie = <T>({ key, value, maxAge, sameSite = 'Lax' }: TCookie<T>) => {
   const serializedValue = JSON.stringify(value)
   const encodedValue = encodeURIComponent(serializedValue)
   document.cookie = `${key}=${encodedValue}${maxAge ? `; Max-Age=${maxAge}` : ''}; Secure; SameSite=${sameSite}; path=/`
@@ -24,7 +24,7 @@ export const setCookie = <T>({ key, value, maxAge, sameSite = 'Lax' }: TCookie<T
  *
  * @param items - Array of cookies to set.
  */
-export const setCookies = (items: TCookie<unknown>[]): void => {
+export const setCookies = (items: TCookie<unknown>[]) => {
   items.forEach(item => setCookie(item))
 }
 
@@ -68,7 +68,7 @@ export const getCookies = <T extends Record<string, unknown>, K extends keyof T 
  *
  * @param key - The key of the cookie to remove.
  */
-export const removeCookie = (key: string): void => {
+export const removeCookie = (key: string) => {
   document.cookie = `${key}=; Max-Age=0; Secure; SameSite=Lax; path=/`
 }
 
@@ -77,14 +77,12 @@ export const removeCookie = (key: string): void => {
  *
  * @param keys - Array of keys to remove.
  */
-export const removeCookies = (keys: string[]): void => {
-  keys.forEach(key => removeCookie(key))
-}
+export const removeCookies = (keys: string[]) => keys.forEach(key => removeCookie(key))
 
 /**
  * Clears all cookies by setting their max age to 0.
  */
-export const clearCookies = (): void => {
+export const clearCookies = () => {
   document.cookie.split('; ').forEach(cookie => {
     const eqPos = cookie.indexOf('=')
     const key = eqPos > -1 ? cookie.substring(0, eqPos) : cookie
